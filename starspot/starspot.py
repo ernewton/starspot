@@ -567,3 +567,55 @@ class RotationModel(object):
         plt.ylabel("Posterior density");
         plt.axvline(self.gp_period - self.errm, ls="--", color="C1");
         plt.axvline(self.gp_period + self.errp, ls="--", color="C1");
+
+
+    def phase_plot(self, period=None, method='acf'):
+
+        if period is not None:
+            plperiod = period
+        else:
+            if method=='acf':
+                plperiod=self.acf_period
+            elif method=='ls':
+                plperiod=self.ls_period
+            elif method=='pdm':
+                plperiod=self.pdm_period
+            else:
+                plperiod=self.gp_period
+            
+        fig = plt.figure(figsize=(6,3.5))
+        mytime = np.mod(self.time, plperiod)
+        xlim = [-0.2*plperiod, 1.2*plperiod]
+            
+        plt.plot(mytime+plperiod, self.flux-np.median(self.flux),
+                     '.', c='gray', ms=1,
+                     alpha=0.5, rasterized=True)
+        plt.plot(mytime-plperiod, self.flux-np.median(self.flux),
+                     '.', c='gray', ms=1,
+                     alpha=0.5, rasterized=True)
+        
+        iphase=np.zeros_like(mytime)
+        myphase = 0
+        for i in range(len(mytime)):
+            iphase[i]=myphase
+            #if the next wraps, new myphase
+            if i < len(mytime)-1:
+                if (mytime[i+1]-mytime[i]<0) | ((self.time[i+1]-self.time[i])>0.005):
+                    myphase+=1
+
+        plt.scatter(mytime, self.flux-np.median(self.flux),
+                     marker='o', c=iphase, cmap='viridis',
+                     alpha=0.2, s=5,
+                     rasterized=True, zorder=0)
+
+
+        plt.xlim(xlim)
+        low, high = np.percentile(self.flux-np.median(self.flux), q=[0.5,99.5])
+        low = 1.2*low
+        high = 1.2*high
+        plt.ylim(low, high)
+        plt.xlabel('Phase (days)')
+        plt.ylabel('Relative flux')
+        plt.tight_layout()
+       
+        return fig
