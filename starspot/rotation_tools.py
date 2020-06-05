@@ -243,7 +243,7 @@ def simple_acf(x_gaps, y_gaps, interval, smooth=9, window_length=99,
 
     # ditch the first point
     acf_smooth, lags = acf_smooth[1:], lags[1:]
-
+    
     return lags, acf_smooth, x, y
 
 
@@ -382,10 +382,12 @@ def get_peak_statistics(x, y, sort_by="height"):
         y_peaks (array): the peak heights in descending height order, or
             ascending x-position order.
     """
-
+    
     # Array of peak indices
-    peaks = np.array([i for i in range(1, len(y)-1) if y[i-1] <
-                      y[i] and y[i+1] < y[i]])
+    peaks = np.array([i for i in range(2, len(y)-2) if y[i-1] <
+                      y[i] and y[i+1] < y[i]
+                      and y[i+2] < y[i]
+                      and y[i-2] < y[i]])
 
     # extract peak values
     x_peaks = x[peaks]
@@ -400,7 +402,7 @@ def get_peak_statistics(x, y, sort_by="height"):
     elif sort_by == "position":
         inds = np.argsort(x_peaks)
         x_peaks, y_peaks = x_peaks[inds], y_peaks[inds]
-
+        
     return x_peaks, y_peaks
 
 

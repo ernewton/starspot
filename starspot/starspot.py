@@ -175,6 +175,7 @@ class RotationModel(object):
         xpeaks, ypeaks = get_peak_statistics(lags[m], acf[m],
                                              sort_by="height")
 
+        self.acf_peaks = xpeaks
         self.lags = lags[m]
         self.acf = acf[m]
         self.acf_period = xpeaks[0]
@@ -187,6 +188,8 @@ class RotationModel(object):
         """
         fig = plt.figure(figsize=(16, 9))
         plt.plot(self.lags, self.acf, "k")
+        for pp in self.acf_peaks:
+            plt.axvline(pp, color="C2", linestyle=":")
         plt.axvline(self.acf_period, color="C1")
         plt.xlabel("Period [days]")
         plt.ylabel("Correlation")
