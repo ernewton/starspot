@@ -224,15 +224,16 @@ def simple_acf(x_gaps, y_gaps, interval, smooth=9, window_length=99,
     double_acf[N:], double_lags[N:] = acf, lags
     acf, lags = double_acf, double_lags
 
-    # smooth with Gaussian kernel convolution
-    Gaussian = lambda x, sig: 1./(2*np.pi*sig**.5) * np.exp(-0.5*(x**2)/
-                                                            (sig**2))
-    conv_func = Gaussian(np.arange(-28, 28, 1.), smooth)
-    acf_smooth = np.convolve(acf, conv_func, mode='same')
 
     # Smooth the data with a Savitsky-Golay filter.
     if window_length is not None:
         acf_smooth = sps.savgol_filter(acf, window_length, polyorder)
+    else:
+        # Smooth with Gaussian kernel convolution
+        Gaussian = lambda x, sig: 1./(2*np.pi*sig**.5) * np.exp(-0.5*(x**2)/
+                                                            (sig**2))
+        conv_func = Gaussian(np.arange(-2*smooth, 2*smooth, 1.), smooth)
+        acf_smooth = np.convolve(acf, conv_func, mode='same')
 
     # just use the second bit (no reflection)
     acf_smooth, lags = acf_smooth[N:], lags[N:]
@@ -365,7 +366,7 @@ def butter_bandpass_filter(flux, lowcut, fs, order=3):
     return y
 
 
-def get_peak_statistics(x, y, sort_by="height"):
+def get_peak_statistics(x, y, sort_by="height", check_neighborhood=None):
     """
     Get the positions and height of peaks in an array.
 
@@ -384,11 +385,31 @@ def get_peak_statistics(x, y, sort_by="height"):
     """
     
     # Array of peak indices
-    peaks = np.array([i for i in range(2, len(y)-2) if y[i-1] <
-                      y[i] and y[i+1] < y[i]
-                      and y[i+2] < y[i]
-                      and y[i-2] < y[i]])
+    orig_peaks = np.array([i for i in range(1, len(y)-1) if
+                    y[i-1] < y[i] and y[i+1] < y[i]])
 
+    if len(orig_peaks) == 0:
+        return None, None
+
+    # check height relative to neighboring peaks
+    # note if 3 peaks at a local minima, middle will still be retained as a peak
+    global_peaks = []
+    ypks = y[orig_peaks]
+    for i in range(0, len(orig_peaks)):
+        print(i, orig_peaks[i], x[orig_peaks[i]], ypks[i])
+        if len(orig_peaks)==1:
+            global_peaks.append(orig_peaks[0])
+        elif (i==0):
+            if (ypks[1]<ypks[0]):
+                global_peaks.append(orig_peaks[0])
+        elif (i==len(orig_peaks)-1):
+            if (ypks[-2]<ypks[-1]):
+                global_peaks.append(orig_peaks[-1])            
+        elif (ypks[i+1]<ypks[i]) & (ypks[i-1]<ypks[i]):
+            global_peaks.append(orig_peaks[i])
+
+    peaks=np.array(global_peaks)
+    
     # extract peak values
     x_peaks = x[peaks]
     y_peaks = y[peaks]
