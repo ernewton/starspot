@@ -14,6 +14,7 @@ import astropy.timeseries as ass
 from .phase_dispersion_minimization import phi, calc_phase, phase_bins, \
     estimate_uncertainty, gaussian
 from tqdm import tqdm, trange
+from scipy.ndimage import median_filter
 
 plotpar = {'axes.labelsize': 25,
            'xtick.labelsize': 20,
@@ -138,8 +139,8 @@ class RotationModel(object):
         plt.subplots_adjust(left=.15, bottom=.15)
         return fig
 
-    def acf_rotation(self, interval, smooth=9, cutoff=0, window_length=99,
-                     polyorder=3):
+    def acf_rotation(self, interval, smooth=9, min_cutoff=0, max_cutoff=None,
+                     filter_window=None, window_length=99, polyorder=3):
         """
         Calculate a rotation period based on an autocorrelation function.
 
@@ -162,16 +163,29 @@ class RotationModel(object):
         if interval == "Kepler":
             interval = 0.02043365
 
-        lags, acf, _x, _y = simple_acf(self.time, self.flux, interval,
+        # filter the data with a median filter of specified size
+        if filter_window is not None:
+            smoothed = median_filter(self.flux, filter_window) #edges reflected by default
+            flux_for_acf = self.flux/smoothed
+        else:
+            flux_for_acf = self.flux
+        
+        lags, acf, _x, _y = simple_acf(self.time, flux_for_acf, interval,
                                        smooth=smooth,
                                        window_length=window_length,
                                        polyorder=polyorder)
-
+        plt.plot(lags, acf)
+        plt.savefig('tmp.pdf')
         self.acf_x = _x
         self.acf_y = _y
 
+        # limit lags
+        m = lags > min_cutoff
+        if max_cutoff is not None:
+            m = m * ( lags < max_cutoff )
+            
         # find all the peaks
-        m = lags > cutoff
+
         xpeaks, ypeaks = get_peak_statistics(lags[m], acf[m],
                                              sort_by="height")
 
@@ -310,7 +324,7 @@ class RotationModel(object):
         # --------------------------------------------------------------------
         gs0 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer[0, :])
 
-        fig = plt.figure(figsize=(16, 16), dpi=200)
+        fig = plt.figure(figsize=(10,10), dpi=200)
         ax1 = fig.add_subplot(gs0[0, :])
         # ax1.plot(self.time, self.flux, "k", lw=.5, rasterized=True)
         # ax1.errorbar(self.time, self.flux, yerr=self.flux_err,
@@ -396,7 +410,7 @@ class RotationModel(object):
             ax.axvline(p*2., ls="--")
             ax.set_ylabel(ylabel)
             if method_xlim is not None:
-                ax.set_xlim(method_xlim)
+                ax.set_xlim(0, method_xlim)
             return ax
 
         maxs = []
